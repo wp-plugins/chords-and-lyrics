@@ -2,7 +2,7 @@
 Contributors: rlisle
 Tags: music, chords, lyrics, Post, posts, plugin, page, custom
 Requires at least: 2.7
-Tested up to: 2.9
+Tested up to: 3.0
 Stable tag: trunk
 
 ChordsAndLyrics will format staffless lead sheets.
@@ -47,15 +47,15 @@ These are the directions for the install. Be sure to read Directions for Use bef
       
 == Frequently Asked Questions ==
 = Is it possible to customize the formatting of the lyrics and chord symbols =
-Yes. Adjust the CSS in your theme. Both chords and lyrics are wrapped within 
-a <td class="lyrics"> tag. The chord symbol is also wrapped within 
-a <span class="chord"> tag.
+Yes. Adjust the CSS in your theme. 
+Chords are wrapped within a <div class="chord"> tag and a <strong> tag. 
+Lyrics are wrapped within a <div class="lyric"> tag.
 
 == Directions for Use ==
 
 1. Create Posts or Pages containing the [chordsandlyrics] ... [/chordsandlyrics] tags.
 1. Embed chord symbols within square brackets inline with lyrics within these tags.
-   For example: 
+   For example:
       [chordsandlyrics]
       [C]Mary had a little lamb, [G]little lamb, [C]little lamb.
       [C]Mary had a little lamb whose [F]fleece was [G]white as [C]snow.
@@ -69,6 +69,10 @@ Install over previous version.
 1. User options page allows control of chords and/or lyrics display and multple columns.
 
 == Changelog ==
+
+= 1.5.0 =
+* Convert previous use of tables to CSS layers for formatting.
+* Change multicolumn formatting to allow author to control it better. 
 
 = 1.4.0 =
 * First public release to WordPress.org subversion.

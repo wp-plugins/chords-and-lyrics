@@ -2,13 +2,13 @@
 /**
  * @package Chords_And_Lyrics
  * @author  Ron Lisle
- * @version 1.4
+ * @version 1.5
  */
 /*
 Plugin Name: ChordsAndLyrics
-Plugin URI: http://BuildAChurchWebsite.org/
+Plugin URI: http://BuildAWebsiteWorkshops.com/
 Description: This plugin assists in the creation of staffless lead sheets.
-Version: 1.4
+Version: 1.5
 Author: Ron Lisle
 Author URI: http://Lisles.net
 
@@ -111,21 +111,23 @@ add_action('admin_menu', 'chordsandlyrics_admin_menu');
  * ShortCode
  */
 
-// Create HTML table entries of the type:
-// <table><td class="lyrics"><span class="chord">chord</span><br/>lyrics</td> ... </table>
-// if any matched square bracketed items exist on a line.
-// The table is used to keep lyrics and chords aligned exactly where specified.
-
+// Create CSS layer formatted chord sheet of the type:
+//
+// <div class="chordslyrics">                 <!-- enclosing everything inside shortcode -->
+//   <div class="chordslyricsline">           <!-- encloses a single line -->
+//     <div class="chordlyric">               <!-- groups a chord and lyric fragment -->
+//       <div class="chord">C#</div>
+//       <div class="lyric">..lyrics..</div>
+//     </div>
+//     ... 
+//   </div>
+// </div>
+//
+// Each .chordlyric will float left.
+//
 // [chordsandlyrics parm=val...] ... [/chordsandlyrics]
 // Parameters: 
-//		format="off"		This allows turning-off conversion of the tag. Useful for help files.
-//		size="normal"				This is an html tag.
 //		transpose="#"				Sets the # +/- half-steps to adjust chords.
-//		capo="#"					TODO: Similar to transpose, but does not adjust chords.
-//		name="song name"			TODO: Format the song name
-//		key="song key"				TODO: Format the key
-//		composer="composer name"	TODO: Format composer
-//		etc.
 function chordsandlyricstag_func($atts, $content = null){
 	$textFile = new TextFile();
 	extract(shortcode_atts(array('format' => 'yes', 'size' => 'normal', 'transpose' => '0'), $atts));
@@ -186,23 +188,27 @@ class TextFile
 	//This is where we start displaying the formatted output
 	public function DisplayText( $text ){
 		$returnText = '<style>'
-					. 'div.chordslyrics { float: left; border-right: 1px solid silver; padding: 0 8px; }'
+					//. 'div.chordslyrics { float: left; border-right: 1px solid silver; padding: 0 8px; }'
+					. 'div.chordslyricspage { float: left; }'
+					. 'div.chordslyricsline { margin: .7em; }'
+					. 'div.chordlyric { display: inline; float: left; }'
 					. '</style>';
-		$returnText .= '<div class="chordslyrics">';
-
+					
+		$returnText .= '<div class="chordslyricspage">';
 		$lineNum = 1;
-		$columnLineNum = 1;
+		//$columnLineNum = 1;
 		foreach( $text as $line ){
-			if($this->twoPages=='on' && $columnLineNum++ > 8){
-				if($columnLineNum > 16
-				|| !strncasecmp($line,'<h',2)){
-					$returnText .= '</div><div class="chordslyrics">';
-					$columnLineNum=1;
-				}
-			}
+			//if($this->twoPages=='on' && $columnLineNum++ > 8){
+			//	if($columnLineNum > 16
+			//	|| !strncasecmp($line,'<h',2)){
+			//		$returnText .= '</div><div class="chordslyrics">';
+			//		$columnLineNum=1;
+			//	}
+			//}
 			$returnText .= $this->FormatAndDisplayLine($line,$lineNum++);
 		}
-		$returnText .= '</div><div style="clear:both"></div>';
+		$returnText .= '</div>'; 							// end of chordslyricspage
+		$returnText .= '<div style="clear:both"></div>';	// Force end of multipages. Probably not needed now.
 		return $returnText;
 	}
 					
@@ -243,66 +249,69 @@ class TextFile
 				}
 			}
 		}
-		
+
+// TODO: limit segment to a single lyric so that long chords cause space where they occur, not in subsequent lyrics.		
+// TODO: Figure out how to avoid extra space when chord occurs in the middle of a lyric
+	
 		// Display a line of chords and text.
+		$returnText .= '<div class="chordslyricsline">';
+		
 		// Align chords and lyrics together by starting each in a table cell.
 		if($this->showChords){
 			$numChars = 0;
-			$returnText .= '<table><tbody><tr>';
 			for($i=0; $i<count($arrChords); $i++){
 				if(strlen(trim($arrChords[$i])) > 0 
 				|| strlen(trim($arrLyrics[$i]))>0){
-					$returnText .= '<td class="lyrics">';
+					$returnText .= '<div class="chordlyric"><div class="chord"><strong>';
 					if(strlen(trim($arrChords[$i])) > 0){
 						$returnText .= $this->FormatChord($arrChords[$i]);
 					// Make sure that text line is aligned vertically 
 					// on those sections with only chord or lyrics.
 					}
-					$returnText .= '<br />';
-					//TODO: cound only characters and spaces outside of "<" and ">"
+					$returnText .= '</strong>&nbsp;</div>';		// End of chord
+					$returnText .= '<div class="lyric">';
 					$lyrics = trim($this->RemoveHtmlStuff($arrLyrics[$i]));
 					if(strlen($lyrics) > 0){
-						if( $this->size != "normal") $returnText .= "<" . $this->size . ">";
+						//if( $this->size != "normal") $returnText .= "<" . $this->size . ">";
 						// Limit each line to 99 chars or less
-						if($numChars+strlen($lyrics) > 99){
-							// Find a space to break at
-							for($breakPos = 99-$numChars; 
-								$breakPos > 0 && $lyrics[$breakPos]!=' '; 
-								$breakPos--);
-							if($breakPos <= 0) $breakPos = 99-$numChars;
-							$returnText .= substr($lyrics,0,$breakPos);
-							$returnText .= '</td></tr></tbody></table><!--break-->';
-							$returnText .= '<table><tbody><tr><td class="lyrics"><br />';
-							$lyrics = substr($lyrics,$breakPos);
-							$returnText .= $lyrics;
-							$numChars = strlen($lyrics);
-							if($numChars >= 99){
-								$numChars = 0;
-								$returnText .= '</td></tr><!--break2--><td class="lyrics">';
-							}
-						}else{
+						//if($numChars+strlen($lyrics) > 99){
+						//	// Find a space to break at
+						//	for($breakPos = 99-$numChars; 
+						//		$breakPos > 0 && $lyrics[$breakPos]!=' '; 
+						//		$breakPos--);
+						//	if($breakPos <= 0) $breakPos = 99-$numChars;
+						//	$returnText .= substr($lyrics,0,$breakPos);
+						//	$returnText .= '</td></tr></tbody></table><!--break-->';
+						//	$returnText .= '<table><tbody><tr><td class="lyrics"><br />';
+						//	$lyrics = substr($lyrics,$breakPos);
+						//	$returnText .= $lyrics;
+						//	$numChars = strlen($lyrics);
+						//	if($numChars >= 99){
+						//		$numChars = 0;
+						//		$returnText .= '</td></tr><!--break2--><td class="lyrics">';
+						//	}
+						//}else{
 							$returnText .= $lyrics;
 							$numChars += strlen($lyrics);
-						}
-						if( $this->size != "normal") $returnText .= "</" . $this->size . ">";
+						//}
+						//if( $this->size != "normal") $returnText .= "</" . $this->size . ">";
 					} //else $returnText .= '<p class="lyrics"><br /></p>';
-					$returnText .= "</TD>\n";
+					$returnText .= "&nbsp;</div></div>\n";	// End of lyric and chordlyric
 				}
 			}
-			for($i=count($arrChords); $i<count($arrLyrics); $i++){
-				$returnText .= '<td class="lyrics">';
-				//$returnText .= '<p class="chords"><br /></p>';
-				$returnText .= $arrLyrics[$i];
-				$returnText .= "</td>\n";
-			}
-			$returnText .= "</tr></tbody></table>\n";
-		}else{
-			$returnText .= '<p class="lyrics" >';
+			//for($i=count($arrChords); $i<count($arrLyrics); $i++){
+			//	$returnText .= '<div class="chordlyric"><div class="chord">X</div><div class="lyric">';
+			//	$returnText .= $arrLyrics[$i];
+			//	$returnText .= "</div></div>\n";	// End of lyric and chordlyric
+			//}
+		}else{		// Show lyrics only
+			$returnText .= '<div class="chordlyric"><div class="lyric">';
 			for($i=0; $i<count($arrLyrics); $i++){
 				$returnText .= $arrLyrics[$i];
 			}
-			$returnText .= "</p>";
+			$returnText .= "</div></div>";
 		}
+		$returnText .= "</div><div style='clear:both'></div>\n";		// End of chordslyricsline
 		return $returnText;
 	}
 	
@@ -431,7 +440,7 @@ class TextFile
 		}
 		
 		//Return the xlat'ed chord and add transpose to the bass note (if any)
-		return '<span class="chord">' . $xlatedNote . $this->FormatBassNote($rem) . '</span>';
+		return $xlatedNote . $this->FormatBassNote($rem);
 	}
 	//******************
 	// FORMAT BASS NOTE
