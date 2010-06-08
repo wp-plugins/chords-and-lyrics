@@ -2,13 +2,13 @@
 /**
  * @package Chords_And_Lyrics
  * @author  Ron Lisle
- * @version 1.5
+ * @version 1.6
  */
 /*
 Plugin Name: ChordsAndLyrics
 Plugin URI: http://BuildAWebsiteWorkshops.com/
 Description: This plugin assists in the creation of staffless lead sheets.
-Version: 1.5
+Version: 1.6
 Author: Ron Lisle
 Author URI: http://Lisles.net
 
@@ -33,78 +33,35 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 /**
- * Options Page
+ * Settings - add a section to the read page
+ * Note: a separate settings page was created prior to v1.6
  */
-function chordsandlyrics_handle_options(){
+add_action('admin_init', 'chordsandlyrics_settings_init');
+
+function chordsandlyrics_settings_init(){
 	global $userdata;
 	get_currentuserinfo();
-	$hidden_field_name = 'submitted';
-	$chords_field_name = 'chords';
-	$chords_opt_name   = 'chordsandlyrics_chords'.$userdata->user_login;
-	$pages_field_name  = 'twopages';
-	$pages_opt_name    = 'chordsandlyrics_pages'.$userdata->user_login; 
-	
-	$chords_opt_val = get_option( $chords_opt_name );
-	$pages_opt_val = get_option( $pages_opt_name );
-	
-	if( $_POST[ $hidden_field_name ] == 'Y' ){
-		$chords_opt_val = $_POST[ $chords_field_name ] ? 'on' : 'off';
-		update_option( $chords_opt_name, $chords_opt_val );
-		$pages_opt_val = $_POST[ $pages_field_name ] ? 'on' : 'off';
-		update_option( $pages_opt_name, $pages_opt_val );
-		echo '<div class="updated"><p><strong>Options saved'
-			.'pages='.$pages_opt_val.', chords='.$chords_opt_val
-			.'</strong></p></div>';
+	$user_settings_name = 'cnl_setting_values_for_' . $userdata->user_login;
+	add_settings_section('cnl_setting_section','Chords and Lyrics Options','cnl_setting_section','reading');
+	add_settings_field('lyrics-only','Display chords or lyrics only?','cnl_lyrics_only_enabled',
+					'reading','cnl_setting_section');
+	register_setting('reading',$user_settings_name);
+}
+
+function cnl_setting_section(){
+	echo '<p>Choose whether to display both chords and lyrics or lyrics only</p>';
+}
+
+function cnl_lyrics_only_enabled(){
+	global $userdata;
+	get_currentuserinfo();
+	$user_settings_name = 'cnl_setting_values_for_' . $userdata->user_login;
+	$cnl_options = get_option($user_settings_name);
+	if($cnl_options['lyrics-only']){
+		$checked = ' checked="checked" ';
 	}
-	$chords = $chords_opt_val == 'on'?'checked':'';
-	$pages  = $pages_opt_val == 'on'?'checked':'';
-	
-	echo '<style>';
-	// label/label span
-	echo 'label, label span { display: block; padding-bottom: .25em; }';
-	echo 'label { float: left; width: 100%; margin: 8px 16px; }';
-	echo 'label span { float: left; width: 60%; text-align: right; }';
-	// Fieldset
-	echo 'fieldset { border: 1px solid silver; }';
-	// input
-	echo 'fieldset input { margin: 2px 8px; }';
-	
-	echo 'form div { clear: both; margin-bottom: 20px; padding: 10px 20px; text-align: center; }';
-	
-	echo '</style>';
-	
-	echo '<div class="wrap">';
-	echo '<div id="icon-chords" class="icon32"><br /></div>';
-	
-	echo '<h2>Chords and Lyrics Options</h2>';
-	
-	echo '<form id="chords1" name="chords1" method="post" action="">';
-	echo "<input type='hidden' name='$hidden_field_name' value='Y'>";
-	
-	echo "<fieldset>";
-	
-	echo "<label for='$chords_field_name'><span>Show chords in addition to lyrics</span>";
-	echo "<input type='checkbox' id='$chords_field_name' name='$chords_field_name' $chords />";
-	echo '</label>';
-	
-	echo "<label for='$pages_field_name'><span>Split long pages into multiple columns as the window width pemits</span>";
-	echo "<input type='checkbox' id='$pages_field_name' name='$pages_field_name' $pages />";
-	echo '</label>';
-
-	echo "</fieldset>";
-	
-	echo '<div>';
-	echo '<input class="button-primary" type="submit" name="Submit" value="Update Options"/>';
-	echo '</div>';
-	echo '</form>';
-	echo '</div>';
-
+	echo '<input '.$checked.' name="'.$user_settings_name.'[lyrics-only]" type="checkbox" />Lyrics Only';
 }
-function chordsandlyrics_admin_menu(){
-	add_theme_page('Chords and Lyrics Options','Chords and Lyrics','read',
-	basename(__FILE__),'chordsandlyrics_handle_options');
-}
-add_action('admin_menu', 'chordsandlyrics_admin_menu');
 
 
 /*
@@ -113,9 +70,9 @@ add_action('admin_menu', 'chordsandlyrics_admin_menu');
 
 // Create CSS layer formatted chord sheet of the type:
 //
-// <div class="chordslyrics">                 <!-- enclosing everything inside shortcode -->
-//   <div class="chordslyricsline">           <!-- encloses a single line -->
-//     <div class="chordlyric">               <!-- groups a chord and lyric fragment -->
+// <div class="cnl_page">                 <!-- enclosing everything inside shortcode -->
+//   <div class="cnl_line">               <!-- encloses a single line -->
+//     <div class="cnl">                 <!-- groups a chord and lyric fragment -->
 //       <div class="chord">C#</div>
 //       <div class="lyric">..lyrics..</div>
 //     </div>
@@ -123,35 +80,34 @@ add_action('admin_menu', 'chordsandlyrics_admin_menu');
 //   </div>
 // </div>
 //
-// Each .chordlyric will float left.
+// Each .cnl will float left.
 //
 // [chordsandlyrics parm=val...] ... [/chordsandlyrics]
 // Parameters: 
 //		transpose="#"				Sets the # +/- half-steps to adjust chords.
 function chordsandlyricstag_func($atts, $content = null){
-	$textFile = new TextFile();
+	$cnlData = new ChordsAndLyricsData();
 	extract(shortcode_atts(array('format' => 'yes', 'size' => 'normal', 'transpose' => '0'), $atts));
 
 	if($format != 'yes') return "[chordsandlyrics]" . $content . "[/chordsandlyrics]";
 	
-	$textFile->setTranspose($transpose);
-	$textFile->setSize($size);
+	$cnlData->setTranspose($transpose);
+	$cnlData->setSize($size);
 	
 	// Break content into separate lines.
-	// ??? Is this still needed ???
 	$lines = explode("\n",$content);
 
 	// Parse content line-by-line
-	return $textFile->DisplayText( $lines);
+	return $cnlData->DisplayText( $lines);
 }
 add_shortcode('chordsandlyrics', 'chordsandlyricstag_func');
 
-// The TextFile object represents a text file formatted in ChordPro like format.
+// The ChordsAndLyrics object represents the text between [chordsandlyrics] tags formatted in ChordPro like format.
 // Chords can be embedded within lyric text by enclosing them in square brackets (eg. [Cmaj7])
-//
-class TextFile
+// Options are saved per-user.
+class ChordsAndLyricsData
 {
-	private $showChords;
+	private $lyricsOnly;
 	private $twoPages;
 	private $transpose;
 	private $size;
@@ -160,15 +116,11 @@ class TextFile
 	{
 		global $userdata;
 		get_currentuserinfo();
-	    // Read in existing option value from database
+		$user_settings_name = 'cnl_setting_values_for_' . $userdata->user_login;
+		$cnl_options = get_option($user_settings_name);
+		$this->lyricsOnly = $cnl_options['lyrics-only'];
+		$this->twoPages = $cnl_options['two-pages'];
 		$this->transpose = 0;
-		$chords_opt_name = 'chordsandlyrics_chords'.$userdata->user_login;
-		$chords_opt_val = get_option( $chords_opt_name, 'on' );
-		$this->showChords = ($chords_opt_val=='on');
-		
-		$pages_opt_name = 'chordsandlyrics_pages'.$userdata->user_login;
-		$pages_opt_val = get_option( $pages_opt_name, 'on' );
-		$this->twoPages = ($pages_opt_val=='on');
 	}
 
 	public function setTranspose( $t ){
@@ -188,27 +140,22 @@ class TextFile
 	//This is where we start displaying the formatted output
 	public function DisplayText( $text ){
 		$returnText = '<style>'
-					//. 'div.chordslyrics { float: left; border-right: 1px solid silver; padding: 0 8px; }'
-					. 'div.chordslyricspage { float: left; }'
-					. 'div.chordslyricsline { margin: .7em; }'
-					. 'div.chordlyric { display: inline; float: left; }'
+					. 'div.cnl_page { float: left; }'
+					. 'div.cnl_line { margin: .7em; }'
+					. 'div.cnl { display: inline; float: left; }'
+					. 'div.cnl_clear { clear: both; }'
 					. '</style>';
 					
-		$returnText .= '<div class="chordslyricspage">';
+		$returnText .= '<div class="cnl_page">';
 		$lineNum = 1;
-		//$columnLineNum = 1;
 		foreach( $text as $line ){
-			//if($this->twoPages=='on' && $columnLineNum++ > 8){
-			//	if($columnLineNum > 16
-			//	|| !strncasecmp($line,'<h',2)){
-			//		$returnText .= '</div><div class="chordslyrics">';
-			//		$columnLineNum=1;
-			//	}
-			//}
+			if($this->twoPages=='on'){
+				//TODO: provide a mechanism to allow the author to split pages
+			}
 			$returnText .= $this->FormatAndDisplayLine($line,$lineNum++);
 		}
-		$returnText .= '</div>'; 							// end of chordslyricspage
-		$returnText .= '<div style="clear:both"></div>';	// Force end of multipages. Probably not needed now.
+		$returnText .= '</div>'; 							// end of cnl_page
+		//$returnText .= '<div class="cnl_clear"></div>';		// Force end of multipages. Probably not needed now.
 		return $returnText;
 	}
 					
@@ -222,55 +169,64 @@ class TextFile
 		$arrLyrics = array();	// Array of corresponding lyrics starting at a chord 
 								// and ending prior to the next chord or the end-of-line.
 		// Remove any <p> and </p>
-		$line = str_replace("<p>","",$line);
-		$line = str_replace("</p>","",$line);
+		//$line = str_replace("<p>","",$line);
+		//$line = str_replace("</p>","",$line);
 		
 		// Split each line into separate chords and lyrics lines
 		if(substr_count($line,"[") == 0){	//Are there no chords on this line?
 			$arrLyrics[] = $line;
-			
+		
 		// Is there an unmatched number of square brackets?
 		}else if(substr_count($line,"[") != substr_count($line,"]")){
 			// If so, flag the error
 			$arrLyrics[] = "Unmatched square brackets: " . $line . "<br />";	
+			
 		}else{
 			//Split line into segments beginning with '['
 			$arrBracketSegments = explode("[",$line);
 			foreach($arrBracketSegments as $segment){
+				$pad = ($segment[strlen($segment)-1]==' ') ? '&nbsp;' : '';
 				// Does the first segment start before the 1st '['?
 				if(substr_count($segment,"]")==0){
 					$arrChords[] = " ";
-					$arrLyrics[] = $segment;
+					$arrLyrics[] = $segment . $pad;
 				}else{
 					// Now process all the segments beginning with '['
 					$arrChordLyric = explode("]",$segment);
 					$arrChords[] = trim($arrChordLyric[0]);
-					$arrLyrics[] = $arrChordLyric[1];
+					$arrLyrics[] = $arrChordLyric[1] . $pad;
 				}
 			}
 		}
 
-// TODO: limit segment to a single lyric so that long chords cause space where they occur, not in subsequent lyrics.		
-// TODO: Figure out how to avoid extra space when chord occurs in the middle of a lyric
-	
 		// Display a line of chords and text.
-		$returnText .= '<div class="chordslyricsline">';
+		$returnText .= '<div class="cnl_line">';
 		
-		// Align chords and lyrics together by starting each in a table cell.
-		if($this->showChords){
-			$numChars = 0;
+		// Align chords and lyrics together by wrapping each in a floating inline div
+		if(!$this->lyricsOnly){
+			//$numChars = 0;
 			for($i=0; $i<count($arrChords); $i++){
 				if(strlen(trim($arrChords[$i])) > 0 
 				|| strlen(trim($arrLyrics[$i]))>0){
-					$returnText .= '<div class="chordlyric"><div class="chord"><strong>';
+					$lyrics = trim($this->RemoveHtmlStuff($arrLyrics[$i]));
+					$returnText .= '<div class="cnl"><div class="chord"><strong>';
 					if(strlen(trim($arrChords[$i])) > 0){
 						$returnText .= $this->FormatChord($arrChords[$i]);
-					// Make sure that text line is aligned vertically 
-					// on those sections with only chord or lyrics.
+						$returnText .= '</strong>&nbsp;</div>';		// End of chord
+						$returnText .= '<div class="lyric">';
+						if(strlen($lyrics)>0){
+							$endOf1stWord = strpos($lyrics,' ');
+							$numSpaces = substr_count($lyrics,' ');
+							if($endOf1stWord>0 && $numSpaces==1){
+								$returnText .= substr($lyrics,0,$endOf1stWord) . '&nbsp;';
+								$lyrics = substr($lyrics,$endOf1stWord);
+								$returnText .= '</div></div><div class="cnl"><div class="chord">&nbsp;</div><div class="lyric">';
+							}
+						}
+					}else{
+						$returnText .= '</strong>&nbsp;</div>';		// End of chord
+						$returnText .= '<div class="lyric">';
 					}
-					$returnText .= '</strong>&nbsp;</div>';		// End of chord
-					$returnText .= '<div class="lyric">';
-					$lyrics = trim($this->RemoveHtmlStuff($arrLyrics[$i]));
 					if(strlen($lyrics) > 0){
 						//if( $this->size != "normal") $returnText .= "<" . $this->size . ">";
 						// Limit each line to 99 chars or less
@@ -292,26 +248,26 @@ class TextFile
 						//	}
 						//}else{
 							$returnText .= $lyrics;
-							$numChars += strlen($lyrics);
+							//$numChars += strlen($lyrics);
 						//}
 						//if( $this->size != "normal") $returnText .= "</" . $this->size . ">";
 					} //else $returnText .= '<p class="lyrics"><br /></p>';
-					$returnText .= "&nbsp;</div></div>\n";	// End of lyric and chordlyric
+					$returnText .= "</div></div>\n";	// End of lyric and chordlyric
 				}
 			}
-			//for($i=count($arrChords); $i<count($arrLyrics); $i++){
-			//	$returnText .= '<div class="chordlyric"><div class="chord">X</div><div class="lyric">';
-			//	$returnText .= $arrLyrics[$i];
-			//	$returnText .= "</div></div>\n";	// End of lyric and chordlyric
-			//}
+			for($i=count($arrChords); $i<count($arrLyrics); $i++){
+				//$returnText .= '<div class="cnl"><div class="chord">&nbsp;</div><div class="lyric">';
+				$returnText .= $arrLyrics[$i];
+				//$returnText .= "</div></div>\n";	// End of lyric and cnl
+			}
 		}else{		// Show lyrics only
-			$returnText .= '<div class="chordlyric"><div class="lyric">';
+			$returnText .= '<div class="cnl"><div class="lyric">';
 			for($i=0; $i<count($arrLyrics); $i++){
 				$returnText .= $arrLyrics[$i];
 			}
 			$returnText .= "</div></div>";
 		}
-		$returnText .= "</div><div style='clear:both'></div>\n";		// End of chordslyricsline
+		$returnText .= "</div><div class='cnl_clear'></div>\n";		// End of cnl_line
 		return $returnText;
 	}
 	

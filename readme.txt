@@ -48,8 +48,8 @@ These are the directions for the install. Be sure to read Directions for Use bef
 == Frequently Asked Questions ==
 = Is it possible to customize the formatting of the lyrics and chord symbols =
 Yes. Adjust the CSS in your theme. 
-Chords are wrapped within a <div class="chord"> tag and a <strong> tag. 
-Lyrics are wrapped within a <div class="lyric"> tag.
+Chords are wrapped within <div class="cnl"><div class="chord"><strong> tags. 
+Lyrics are wrapped within a <div class="cnl"><div class="lyric"> tags.
 
 == Directions for Use ==
 
@@ -60,15 +60,23 @@ Lyrics are wrapped within a <div class="lyric"> tag.
       [C]Mary had a little lamb, [G]little lamb, [C]little lamb.
       [C]Mary had a little lamb whose [F]fleece was [G]white as [C]snow.
       [/chordsandlyrics]
-
+   Note that chords can appear in the middle of lyric words.
+   
 == Upgrade Notice ==
 Install over previous version.
 
 == Screenshots ==
 
-1. User options page allows control of chords and/or lyrics display and multple columns.
+1. User option section on settings->reading page allows control of chords and/or lyrics display.
 
 == Changelog ==
+
+= 1.6.0 =
+* Fix bug preventing headings from showing.
+* Improved formatting for big chords over small words.
+* Clean up options API code.
+* Settings now displayed at bottom of settings -> reading page.
+* Removed multi-page option.
 
 = 1.5.0 =
 * Convert previous use of tables to CSS layers for formatting.
