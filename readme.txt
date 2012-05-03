@@ -2,7 +2,7 @@
 Contributors: rlisle
 Tags: music, chords, lyrics, Post, posts, plugin, page, custom
 Requires at least: 2.7
-Tested up to: 3.0
+Tested up to: 3.3.2
 Stable tag: trunk
 
 ChordsAndLyrics will format staffless lead sheets.
@@ -48,8 +48,8 @@ These are the directions for the install. Be sure to read Directions for Use bef
 == Frequently Asked Questions ==
 = Is it possible to customize the formatting of the lyrics and chord symbols? =
 Yes. Adjust the CSS in your theme. 
-Chords are wrapped within <div class="cnl"><div class="chord"><strong> tags. 
-Lyrics are wrapped within a <div class="cnl"><div class="lyric"> tags.
+Chords are wrapped within div#cnl div#chord strong tags. 
+Lyrics are wrapped within div#cnl div#lyric tags.
 = Can I display European chords? =
 Yes. Beginning with version 1.7, European chord convention is supported.
 A new option in the Reading Settings allows enabling display using aHcdefg instead of abcdefg.
