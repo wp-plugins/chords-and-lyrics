@@ -2,19 +2,19 @@
 /**
  * @package Chords_And_Lyrics
  * @author  Ron Lisle
- * @version 1.6
+ * @version 1.7
  */
 /*
 Plugin Name: ChordsAndLyrics
-Plugin URI: http://BuildAWebsiteWorkshops.com/
+Plugin URI: http://Lisles.net/
 Description: This plugin assists in the creation of staffless lead sheets.
-Version: 1.6
+Version: 1.7
 Author: Ron Lisle
 Author URI: http://Lisles.net
 
 Refer to Readme.txt file for more information. 
 
-Copyright 2008-2010 Ron Lisle
+Copyright 2008-2012 Ron Lisle
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,11 +45,13 @@ function chordsandlyrics_settings_init(){
 	add_settings_section('cnl_setting_section','Chords and Lyrics Options','cnl_setting_section','reading');
 	add_settings_field('lyrics-only','Display chords or lyrics only?','cnl_lyrics_only_enabled',
 					'reading','cnl_setting_section');
+	add_settings_field('european-chords','Display European chords?','cnl_european_chords_enabled',
+					'reading','cnl_setting_section');
 	register_setting('reading',$user_settings_name);
 }
 
 function cnl_setting_section(){
-	echo '<p>Choose whether to display both chords and lyrics or lyrics only</p>';
+	echo '<p>Select options for displaying chords</p>';
 }
 
 function cnl_lyrics_only_enabled(){
@@ -63,6 +65,16 @@ function cnl_lyrics_only_enabled(){
 	echo '<input '.$checked.' name="'.$user_settings_name.'[lyrics-only]" type="checkbox" />Lyrics Only';
 }
 
+function cnl_european_chords_enabled(){
+	global $userdata;
+	get_currentuserinfo();
+	$user_settings_name = 'cnl_setting_values_for_' . $userdata->user_login;
+	$cnl_options = get_option($user_settings_name);
+	if($cnl_options['european-chords']){
+		$checked = ' checked="checked" ';
+	}
+	echo '<input '.$checked.' name="'.$user_settings_name.'[european-chords]" type="checkbox" />European chords';
+}
 
 /*
  * ShortCode
@@ -84,15 +96,19 @@ function cnl_lyrics_only_enabled(){
 //
 // [chordsandlyrics parm=val...] ... [/chordsandlyrics]
 // Parameters: 
+//		format="yes"				Enable/disable formatting
+//		size="normal"				Adjust display size
 //		transpose="#"				Sets the # +/- half-steps to adjust chords.
+//      european="yes"				Interpret input using european convention (aHcdefg and B=Bb)
 function chordsandlyricstag_func($atts, $content = null){
 	$cnlData = new ChordsAndLyricsData();
-	extract(shortcode_atts(array('format' => 'yes', 'size' => 'normal', 'transpose' => '0'), $atts));
+	extract(shortcode_atts(array('format' => 'yes', 'size' => 'normal', 'transpose' => '0', 'european' => 'no'), $atts));
 
 	if($format != 'yes') return "[chordsandlyrics]" . $content . "[/chordsandlyrics]";
 	
 	$cnlData->setTranspose($transpose);
 	$cnlData->setSize($size);
+	$cnlData->setEuropean($european);
 	
 	// Break content into separate lines.
 	$lines = explode("\n",$content);
@@ -111,6 +127,8 @@ class ChordsAndLyricsData
 	private $twoPages;
 	private $transpose;
 	private $size;
+	private $european;
+	private $displayEuropean;
 	
 	public function __construct()
 	{
@@ -121,6 +139,7 @@ class ChordsAndLyricsData
 		$this->lyricsOnly = $cnl_options['lyrics-only'];
 		$this->twoPages = $cnl_options['two-pages'];
 		$this->transpose = 0;
+		$this->displayEuropean = $cnl_options['european-chords'];
 	}
 
 	public function setTranspose( $t ){
@@ -135,6 +154,19 @@ class ChordsAndLyricsData
 	}
 	public function getSize(){
 		return $this->size;
+	}
+	
+	public function setEuropean( $e ){
+		$this->european = $e;
+	}
+	public function getEuropean(){
+		return $this->european;
+	}
+	public function setDisplayEuropean( $e ){
+		$this->displayEuropean = $e;
+	}
+	public function getDisplayEuropean(){
+		return $this->displayEuropean;
 	}
 	
 	//This is where we start displaying the formatted output
@@ -305,7 +337,11 @@ class ChordsAndLyricsData
 			break;
 		case 'b':
 		case 'B':
-			$noteVal = 2;
+			if($this->european == 'yes'){
+				$noteVal = 1;
+			}else{
+				$noteVal = 2;
+			}
 			break;
 		case 'c':
 		case 'C':
@@ -326,6 +362,10 @@ class ChordsAndLyricsData
 		case 'g':
 		case 'G':
 			$noteVal = 10;
+			break;
+		case 'h':
+		case 'H':
+			$noteVal = 2;
 			break;
 		default:
 			return;
@@ -356,11 +396,19 @@ class ChordsAndLyricsData
 			$xlatedNote = 'A';
 			break;
 		case 1:
-			if($useFlats) $xlatedNote = "Bb";
-			else $xlatedNote = "A#";
+			if($this->displayEuropean){
+				$xlatedNote = 'B';
+			}else{
+				if($useFlats) $xlatedNote = "Bb";
+				else $xlatedNote = "A#";
+			}
 			break;
 		case 2:
-			$xlatedNote = 'B';
+			if($this->displayEuropean){
+				$xlatedNote = 'H';
+			}else{
+				$xlatedNote = 'B';
+			}
 			break;
 		case 3:
 			$xlatedNote = 'C';

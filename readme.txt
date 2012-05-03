@@ -46,10 +46,15 @@ These are the directions for the install. Be sure to read Directions for Use bef
    embedded chords symbols in square brackets. 
       
 == Frequently Asked Questions ==
-= Is it possible to customize the formatting of the lyrics and chord symbols =
+= Is it possible to customize the formatting of the lyrics and chord symbols? =
 Yes. Adjust the CSS in your theme. 
 Chords are wrapped within <div class="cnl"><div class="chord"><strong> tags. 
 Lyrics are wrapped within a <div class="cnl"><div class="lyric"> tags.
+= Can I display European chords? =
+Yes. Beginning with version 1.7, European chord convention is supported.
+A new option in the Reading Settings allows enabling display using aHcdefg instead of abcdefg.
+For entering chords in a post using European chord convention, add the european=yes argument
+to the chordsandlyrics short tag (eg. [chordsandlyrics european=yes])
 
 == Directions for Use ==
 
@@ -70,6 +75,9 @@ Install over previous version.
 1. User option section on settings->reading page allows control of chords and/or lyrics display.
 
 == Changelog ==
+
+= 1.7.0 =
+* Add support for European chord style (aHcdefg, B=Bb)
 
 = 1.6.0 =
 * Fix bug preventing headings from showing.
